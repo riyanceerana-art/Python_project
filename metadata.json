@@ -1,0 +1,6 @@
+{
+  "name": "OmniSight BI Analytics Studio",
+  "description": "Enterprise Data Analytics & BI Studio with automated schema profiling, dynamic axis mapping, and interactive visual analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,1561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OmniSight BI</title>
+  <meta name="description" content="OmniSight BI - Simple, powerful data analytics and interactive visual dashboard." />
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#F0F9FF',
+              100: '#E0F2FE',
+              500: '#0EA5E9',
+              600: '#0284C7',
+              700: '#0369A1',
+              900: '#0C4A6E',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Fira Code', 'Consolas', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+
+  <style>
+    /* Clean smooth scrollbars */
+    ::-webkit-scrollbar {
+      width: 7px;
+      height: 7px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #F1F5F9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #CBD5E1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94A3B8;
+    }
+
+    /* Fixed table styling */
+    .bi-sticky-header th {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: #F8FAFC;
+    }
+    
+    /* Drag and drop active state */
+    .drag-active {
+      border-color: #0284C7 !important;
+      background-color: #F0F9FF !important;
+    }
+
+    /* Fullscreen canvas mode styling */
+    .visual-fullscreen-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: #FFFFFF;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+    }
+  </style>
+</head>
+<body class="bg-[#F1F5F9] text-[#0F172A] font-sans min-h-screen flex flex-col selection:bg-sky-100 selection:text-sky-900">
+
+  <!-- ============================================================== -->
+  <!-- 1. TOP HEADER BAR                                             -->
+  <!-- ============================================================== -->
+  <header class="h-14 bg-white border-b border-[#CBD5E1] px-5 flex items-center justify-between sticky top-0 z-40 shadow-xs">
+    <!-- Brand / Name -->
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-[#0284C7] flex items-center justify-center text-white shadow-xs">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.3">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+        </svg>
+      </div>
+      <div>
+        <h1 class="font-bold text-base text-[#0F172A] tracking-tight">OmniSight BI</h1>
+      </div>
+    </div>
+
+    <!-- Active Dataset & Global Tools -->
+    <div class="flex items-center gap-3">
+      <!-- Database Status Badge -->
+      <div class="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded bg-slate-50 border border-slate-200 text-xs text-slate-600">
+        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+        <span>Connected</span>
+        <span class="text-slate-300">·</span>
+        <span class="font-mono text-slate-700 text-[11px]" id="dbStatusFilename">analytics.db</span>
+      </div>
+
+      <!-- Dataset Selector -->
+      <div class="flex items-center gap-1.5">
+        <label for="datasetSelect" class="text-xs font-medium text-slate-500 hidden md:inline">Dataset:</label>
+        <select id="datasetSelect" class="text-xs bg-white border border-[#CBD5E1] rounded px-2.5 py-1.5 text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-[#0284C7] shadow-xs cursor-pointer max-w-[200px] truncate">
+          <option value="" disabled>Loading dataset...</option>
+        </select>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center gap-1.5 pl-2 border-l border-slate-200">
+        <button id="btnReloadSample" title="Load sample dataset" class="px-2.5 py-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded transition-colors flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          <span class="hidden sm:inline">Sample Data</span>
+        </button>
+
+        <!-- Fullscreen App Button -->
+        <button id="btnAppFullscreen" title="Toggle Fullscreen Mode" class="px-2.5 py-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded transition-colors flex items-center gap-1">
+          <svg id="fullscreenIconExpand" class="w-3.5 h-3.5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+          </svg>
+          <span class="hidden md:inline" id="fullscreenBtnText">Fullscreen</span>
+        </button>
+
+        <button id="btnExportChart" title="Export visual chart as PNG" class="px-3 py-1.5 text-xs font-medium bg-[#0284C7] hover:bg-[#0369A1] text-white rounded transition-colors shadow-xs flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          <span>Export Visual</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============================================================== -->
+  <!-- 2. MAIN WORKSPACE WITH NATURAL SMOOTH SCROLLING                -->
+  <!-- ============================================================== -->
+  <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
+    
+    <!-- ============================================================ -->
+    <!-- LEFT SIDEBAR: The Columns & Fields Shelf                     -->
+    <!-- ============================================================ -->
+    <aside class="w-full md:w-64 lg:w-72 bg-white border-r border-[#CBD5E1] flex flex-col flex-shrink-0 z-20 shadow-xs overflow-y-auto max-h-[40vh] md:max-h-none">
+      
+      <!-- Top Zone: File Upload -->
+      <div class="p-3.5 border-b border-[#CBD5E1] bg-slate-50/70">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5 text-[#0284C7]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+            Upload Data
+          </span>
+          <span class="text-[10px] text-slate-400 font-mono">CSV</span>
+        </div>
+
+        <!-- Drag & Drop Box -->
+        <div id="dropZone" class="border-2 border-dashed border-slate-300 rounded-lg p-3 text-center cursor-pointer hover:border-[#0284C7] hover:bg-sky-50/50 transition-colors bg-white">
+          <input type="file" id="csvFileInput" accept=".csv,.txt" class="hidden" />
+          <svg class="w-5 h-5 mx-auto text-slate-400 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <p class="text-xs font-medium text-slate-700">Drop CSV file here</p>
+          <p class="text-[10px] text-slate-400 mt-0.5">or <span class="text-[#0284C7] font-semibold underline">click to browse</span></p>
+        </div>
+        <div id="uploadFeedback" class="text-[11px] mt-1.5 hidden font-medium flex items-center gap-1"></div>
+      </div>
+
+      <!-- Fields Search -->
+      <div class="px-3 py-2 border-b border-slate-200 bg-white">
+        <div class="relative">
+          <input type="text" id="fieldSearchInput" placeholder="Search fields..." class="w-full text-xs pl-7 pr-3 py-1.5 border border-slate-200 rounded-md bg-slate-50 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-[#0284C7] focus:bg-white" />
+          <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2 top-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+      </div>
+
+      <!-- Fields List -->
+      <div class="flex-1 overflow-y-auto px-3.5 py-3 space-y-4">
+        
+        <!-- Dimensions Group -->
+        <div>
+          <div class="flex items-center justify-between pb-1.5 mb-1 border-b border-slate-100">
+            <div class="flex items-center gap-1.5">
+              <span class="w-4 h-4 rounded bg-sky-100 text-[#0284C7] text-[10px] font-bold flex items-center justify-center font-mono">Abc</span>
+              <span class="text-xs font-bold text-slate-700">Dimensions</span>
+            </div>
+            <span id="dimensionCountBadge" class="text-[11px] text-slate-400 font-mono">0</span>
+          </div>
+          <div id="dimensionsList" class="space-y-1 mt-1.5">
+            <div class="text-[11px] text-slate-400 italic py-1">No dimensions loaded</div>
+          </div>
+        </div>
+
+        <!-- Measures Group -->
+        <div>
+          <div class="flex items-center justify-between pb-1.5 mb-1 border-b border-slate-100">
+            <div class="flex items-center gap-1.5">
+              <span class="w-4 h-4 rounded bg-emerald-100 text-emerald-700 text-[10px] font-bold flex items-center justify-center font-mono">#</span>
+              <span class="text-xs font-bold text-slate-700">Measures</span>
+            </div>
+            <span id="measureCountBadge" class="text-[11px] text-slate-400 font-mono">0</span>
+          </div>
+          <div id="measuresList" class="space-y-1 mt-1.5">
+            <div class="text-[11px] text-slate-400 italic py-1">No measures loaded</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Sidebar Footer: Quick Inspect Card -->
+      <div class="p-3 border-t border-[#CBD5E1] bg-slate-50 text-[11px] text-slate-500">
+        <div class="font-medium text-slate-700 flex items-center justify-between">
+          <span>Field Details</span>
+          <span class="text-[10px] font-mono text-slate-400" id="inspectFieldType">-</span>
+        </div>
+        <div id="fieldInspectorContent" class="mt-1 text-slate-500 text-[10px] leading-relaxed">
+          Click any field to map it or view statistical metrics.
+        </div>
+      </div>
+    </aside>
+
+    <!-- ============================================================ -->
+    <!-- MAIN WORKSPACE CANVAS (Scrollable & Responsive)             -->
+    <!-- ============================================================ -->
+    <main class="flex-1 overflow-y-auto bg-[#F1F5F9] p-4 space-y-4">
+      
+      <!-- ========================================================== -->
+      <!-- TOP ROW: Summary KPI Cards                                 -->
+      <!-- ========================================================== -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <!-- KPI 1: Total Rows -->
+        <div class="bg-white border border-[#CBD5E1] rounded-lg p-3.5 shadow-xs flex items-center justify-between">
+          <div>
+            <p class="text-[11px] font-medium text-[#475569] uppercase tracking-wider">Total Rows</p>
+            <p class="text-xl font-bold text-[#0F172A] mt-0.5 tracking-tight font-mono" id="kpiTotalRows">-</p>
+            <p class="text-[10px] text-slate-400 mt-0.5">Dataset records</p>
+          </div>
+          <div class="w-8 h-8 rounded bg-slate-100 text-slate-600 flex items-center justify-center">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7C5 4 4 5 4 7z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12h6M9 16h6M9 8h6" />
+            </svg>
+          </div>
+        </div>
+
+        <!-- KPI 2: Total Columns -->
+        <div class="bg-white border border-[#CBD5E1] rounded-lg p-3.5 shadow-xs flex items-center justify-between">
+          <div>
+            <p class="text-[11px] font-medium text-[#475569] uppercase tracking-wider">Total Columns</p>
+            <p class="text-xl font-bold text-[#0F172A] mt-0.5 tracking-tight font-mono" id="kpiTotalCols">-</p>
+            <p class="text-[10px] text-slate-400 mt-0.5"><span id="kpiDimCount">-</span> dims · <span id="kpiMeasCount">-</span> measures</p>
+          </div>
+          <div class="w-8 h-8 rounded bg-sky-50 text-[#0284C7] flex items-center justify-center">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+            </svg>
+          </div>
+        </div>
+
+        <!-- KPI 3: Missing Values Ratio -->
+        <div class="bg-white border border-[#CBD5E1] rounded-lg p-3.5 shadow-xs flex items-center justify-between">
+          <div>
+            <p class="text-[11px] font-medium text-[#475569] uppercase tracking-wider">Missing Values</p>
+            <p class="text-xl font-bold text-[#0F172A] mt-0.5 tracking-tight font-mono" id="kpiMissingRatio">0.00%</p>
+            <p class="text-[10px] text-slate-400 mt-0.5"><span id="kpiMissingCells">0</span> null cells</p>
+          </div>
+          <div class="w-8 h-8 rounded bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+        </div>
+
+        <!-- KPI 4: Aggregated Sum -->
+        <div class="bg-white border border-[#CBD5E1] rounded-lg p-3.5 shadow-xs flex items-center justify-between">
+          <div>
+            <p class="text-[11px] font-medium text-[#475569] uppercase tracking-wider">Aggregated Total</p>
+            <p class="text-xl font-bold text-[#0284C7] mt-0.5 tracking-tight font-mono" id="kpiAggSum">-</p>
+            <p class="text-[10px] text-slate-400 mt-0.5"><span id="kpiAggAvg">-</span> avg per segment</p>
+          </div>
+          <div class="w-8 h-8 rounded bg-indigo-50 text-indigo-600 flex items-center justify-center">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================== -->
+      <!-- MIDDLE ROW: Interactive Chart Shelves Deck                 -->
+      <!-- ========================================================== -->
+      <div class="bg-white border border-[#CBD5E1] rounded-lg p-3.5 shadow-xs">
+        <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+              <svg class="w-4 h-4 text-[#0284C7]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7" />
+              </svg>
+              Chart Shelves & Axis Mapping
+            </span>
+          </div>
+          
+          <button id="btnResetShelf" class="text-xs text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1">
+            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            <span>Reset</span>
+          </button>
+        </div>
+
+        <!-- Dropdowns Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+          
+          <!-- X-Axis -->
+          <div class="lg:col-span-2">
+            <label for="shelfXAxis" class="block text-[11px] font-semibold text-slate-700 mb-1 flex items-center justify-between">
+              <span class="flex items-center gap-1">
+                <span class="w-3 h-3 rounded bg-sky-100 text-[#0284C7] text-[9px] font-bold flex items-center justify-center font-mono">X</span>
+                <span>Columns (X-Axis)</span>
+              </span>
+            </label>
+            <select id="shelfXAxis" class="w-full text-xs bg-slate-50 border border-[#CBD5E1] rounded-md px-2.5 py-1.5 text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-[#0284C7] focus:bg-white cursor-pointer">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+
+          <!-- Y-Axis -->
+          <div class="lg:col-span-2">
+            <label for="shelfYAxis" class="block text-[11px] font-semibold text-slate-700 mb-1 flex items-center justify-between">
+              <span class="flex items-center gap-1">
+                <span class="w-3 h-3 rounded bg-emerald-100 text-emerald-700 text-[9px] font-bold flex items-center justify-center font-mono">Y</span>
+                <span>Rows (Y-Axis)</span>
+              </span>
+            </label>
+            <select id="shelfYAxis" class="w-full text-xs bg-slate-50 border border-[#CBD5E1] rounded-md px-2.5 py-1.5 text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-[#0284C7] focus:bg-white cursor-pointer">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+
+          <!-- Aggregation -->
+          <div class="lg:col-span-1">
+            <label for="shelfAgg" class="block text-[11px] font-semibold text-slate-700 mb-1">
+              <span>Aggregation</span>
+            </label>
+            <select id="shelfAgg" class="w-full text-xs bg-slate-50 border border-[#CBD5E1] rounded-md px-2.5 py-1.5 text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-[#0284C7] focus:bg-white cursor-pointer">
+              <option value="SUM" selected>SUM</option>
+              <option value="AVG">AVG</option>
+              <option value="COUNT">COUNT</option>
+              <option value="MIN">MIN</option>
+              <option value="MAX">MAX</option>
+            </select>
+          </div>
+
+          <!-- Visual Mark / Chart Type -->
+          <div class="lg:col-span-1">
+            <label for="shelfChartType" class="block text-[11px] font-semibold text-slate-700 mb-1">
+              <span>Chart Type</span>
+            </label>
+            <select id="shelfChartType" class="w-full text-xs bg-slate-50 border border-[#CBD5E1] rounded-md px-2.5 py-1.5 text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-[#0284C7] focus:bg-white cursor-pointer">
+              <option value="bar" selected>Bar Chart</option>
+              <option value="horizontalBar">Horizontal Bar</option>
+              <option value="line">Line Graph</option>
+              <option value="area">Area Chart</option>
+              <option value="pie">Pie Chart</option>
+              <option value="doughnut">Doughnut Chart</option>
+              <option value="radar">Radar Plot</option>
+            </select>
+          </div>
+
+        </div>
+
+        <!-- Filter Sub-Shelf -->
+        <div class="mt-2.5 pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between text-xs text-slate-600 gap-2">
+          <div class="flex items-center gap-3">
+            <div class="flex items-center gap-1.5">
+              <span class="text-[11px] text-slate-400">Sort:</span>
+              <select id="shelfSort" class="text-xs bg-transparent border-0 font-medium text-slate-700 hover:text-[#0284C7] focus:outline-none cursor-pointer">
+                <option value="desc" selected>Highest to Lowest</option>
+                <option value="asc">Lowest to Highest</option>
+                <option value="alpha">A to Z</option>
+              </select>
+            </div>
+
+            <span class="text-slate-300">·</span>
+
+            <div class="flex items-center gap-1.5">
+              <span class="text-[11px] text-slate-400">Limit:</span>
+              <select id="shelfTopN" class="text-xs bg-transparent border-0 font-medium text-slate-700 hover:text-[#0284C7] focus:outline-none cursor-pointer">
+                <option value="10">Top 10</option>
+                <option value="25" selected>Top 25</option>
+                <option value="50">Top 50</option>
+                <option value="">All</option>
+              </select>
+            </div>
+
+            <span class="text-slate-300">·</span>
+
+            <div class="flex items-center gap-1.5">
+              <input type="checkbox" id="checkTension" checked class="rounded border-slate-300 text-[#0284C7] focus:ring-0 cursor-pointer" />
+              <label for="checkTension" class="text-[11px] text-slate-600 cursor-pointer">Curved line (0.3)</label>
+            </div>
+          </div>
+
+          <div class="text-[11px] text-slate-500 font-mono" id="shelfQueryMetrics">
+            Synced
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ========================================================== -->
+      <!-- BOTTOM ROW: Dual-Tabbed Workstation (Visual / Data Grid)   -->
+      <!-- ========================================================== -->
+      <div id="workspaceCard" class="bg-white border border-[#CBD5E1] rounded-lg shadow-xs flex flex-col transition-all">
+        
+        <!-- Tab Bar Navigation -->
+        <div class="h-11 border-b border-[#CBD5E1] px-4 bg-slate-50/90 flex items-center justify-between rounded-t-lg">
+          <div class="flex items-center gap-2">
+            <button id="tabVisualBtn" class="px-3.5 py-2.5 text-xs font-bold border-b-2 border-[#0284C7] text-[#0284C7] flex items-center gap-2 transition-colors">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+              </svg>
+              <span>Visual Chart</span>
+            </button>
+
+            <button id="tabDataBtn" class="px-3.5 py-2.5 text-xs font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center gap-2 transition-colors">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              <span>Data Grid</span>
+            </button>
+          </div>
+
+          <!-- Tab Bar Extra Actions -->
+          <div class="flex items-center gap-2">
+            <span id="canvasSummaryBadge" class="text-[11px] font-mono text-slate-500 hidden sm:inline">-</span>
+
+            <!-- Fullscreen Visual Modal Trigger -->
+            <button id="btnExpandVisual" title="Expand Chart to Fullscreen" class="p-1.5 text-slate-500 hover:text-[#0284C7] hover:bg-slate-200/60 rounded transition-colors">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- TAB CONTENT A: Visual Chart Canvas -->
+        <div id="tabVisualContent" class="p-4 flex flex-col">
+          <!-- Canvas Container -->
+          <div id="chartContainer" class="relative w-full h-[440px]">
+            <canvas id="analyticsCanvas"></canvas>
+          </div>
+
+          <!-- Bottom Benchmark Strip -->
+          <div class="mt-3 pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between text-[11px] text-slate-600 font-mono gap-2">
+            <div class="flex items-center gap-4">
+              <span>Peak: <strong id="statPeakVal" class="text-slate-900 font-bold">-</strong></span>
+              <span>Floor: <strong id="statFloorVal" class="text-slate-900 font-bold">-</strong></span>
+              <span>Average: <strong id="statMeanVal" class="text-slate-900 font-bold">-</strong></span>
+              <span>Count: <strong id="statSegmentCount" class="text-slate-900 font-bold">-</strong></span>
+            </div>
+            <div class="text-[10px] text-slate-400">
+              Hover over points to inspect exact values
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB CONTENT B: Paginated Raw Data Table Grid -->
+        <div id="tabDataContent" class="p-4 flex flex-col hidden">
+          <!-- Grid Toolbar -->
+          <div class="flex flex-wrap items-center justify-between mb-3 gap-2">
+            <div class="flex items-center gap-2">
+              <div class="relative">
+                <input type="text" id="gridSearchInput" placeholder="Filter rows..." class="text-xs pl-7 pr-3 py-1.5 border border-[#CBD5E1] rounded-md w-56 text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#0284C7]" />
+                <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2 top-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <button id="btnSearchGrid" class="px-3 py-1.5 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md font-medium transition-colors">
+                Filter
+              </button>
+            </div>
+
+            <!-- EXPORT DATA TO CSV BUTTON -->
+            <div class="flex items-center gap-3">
+              <button id="btnExportCSV" class="px-3 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-md transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                <span>Export Data to CSV</span>
+              </button>
+
+              <div class="flex items-center gap-2 text-xs text-slate-500">
+                <span id="gridTotalInfo" class="font-mono">Showing 0-0 of 0</span>
+                <select id="gridPageSize" class="text-xs bg-white border border-[#CBD5E1] rounded px-2 py-1 text-slate-700">
+                  <option value="15">15 rows</option>
+                  <option value="25" selected>25 rows</option>
+                  <option value="50">50 rows</option>
+                  <option value="100">100 rows</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Table Container with Smooth Scrolling -->
+          <div class="overflow-x-auto overflow-y-auto max-h-[500px] border border-[#CBD5E1] rounded-lg bg-white">
+            <table id="rawDataTable" class="w-full text-left text-xs border-collapse">
+              <thead class="bi-sticky-header font-semibold text-slate-700 border-b border-[#CBD5E1]">
+                <tr id="tableHeaderRow">
+                  <!-- Dynamic column th -->
+                </tr>
+              </thead>
+              <tbody id="tableBody" class="divide-y divide-slate-100 font-mono text-[11px] text-slate-700">
+                <!-- Dynamic rows -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pagination Controls -->
+          <div class="mt-3 flex items-center justify-between pt-2 border-t border-slate-100">
+            <div class="text-xs text-slate-500" id="paginationLabel">
+              Page 1 of 1
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button id="btnPrevPage" class="px-3 py-1 text-xs border border-[#CBD5E1] rounded bg-white hover:bg-slate-50 text-slate-700 font-medium disabled:opacity-40 disabled:cursor-not-allowed">
+                Previous
+              </button>
+              <button id="btnNextPage" class="px-3 py-1 text-xs border border-[#CBD5E1] rounded bg-white hover:bg-slate-50 text-slate-700 font-medium disabled:opacity-40 disabled:cursor-not-allowed">
+                Next
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- 3. FULLSCREEN VISUAL CANVAS MODAL (For Fullscreen Visual)       -->
+  <!-- ============================================================== -->
+  <div id="fullscreenVisualModal" class="hidden visual-fullscreen-modal">
+    <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+      <div class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-full bg-[#0284C7]"></span>
+        <h2 id="fsModalTitle" class="text-base font-bold text-slate-900">Visual Canvas - Fullscreen View</h2>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="btnExportFSChart" class="px-3 py-1.5 text-xs font-semibold bg-[#0284C7] hover:bg-[#0369A1] text-white rounded transition-colors flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          <span>Save PNG</span>
+        </button>
+        <button id="btnCloseFSModal" class="px-3 py-1.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded transition-colors flex items-center gap-1">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+          <span>Exit Fullscreen</span>
+        </button>
+      </div>
+    </div>
+    <div class="flex-1 relative w-full h-full mt-4">
+      <canvas id="fullscreenCanvas"></canvas>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- 4. JAVASCRIPT LOGIC ENGINE                                     -->
+  <!-- ============================================================== -->
+  <script>
+    (function () {
+      'use strict';
+
+      // Application State Model
+      const state = {
+        currentDatasetId: null,
+        datasetCatalog: [],
+        currentProfile: null,
+        dimensions: [],
+        measures: [],
+        chartInstance: null,
+        fsChartInstance: null,
+        currentAggData: null,
+        grid: {
+          page: 1,
+          pageSize: 25,
+          totalPages: 1,
+          totalRecords: 0,
+          search: '',
+          sortCol: '',
+          sortDir: 'asc'
+        }
+      };
+
+      // Corporate Chart.js Palette
+      const corporatePalette = [
+        '#0284C7', // Corporate Dark Blue (Sky 600)
+        '#0F172A', // Deep Slate
+        '#0D9488', // Teal 600
+        '#6366F1', // Indigo 500
+        '#EA580C', // Amber / Rust 600
+        '#10B981', // Emerald 500
+        '#8B5CF6', // Purple 500
+        '#F59E0B', // Amber 500
+        '#EC4899', // Pink 500
+        '#475569'  // Slate Blue
+      ];
+
+      // DOM Elements
+      const els = {
+        datasetSelect: document.getElementById('datasetSelect'),
+        dbStatusFilename: document.getElementById('dbStatusFilename'),
+        dropZone: document.getElementById('dropZone'),
+        csvFileInput: document.getElementById('csvFileInput'),
+        uploadFeedback: document.getElementById('uploadFeedback'),
+        btnReloadSample: document.getElementById('btnReloadSample'),
+        btnAppFullscreen: document.getElementById('btnAppFullscreen'),
+        fullscreenIconExpand: document.getElementById('fullscreenIconExpand'),
+        fullscreenBtnText: document.getElementById('fullscreenBtnText'),
+        btnExportChart: document.getElementById('btnExportChart'),
+        fieldSearchInput: document.getElementById('fieldSearchInput'),
+        dimensionsList: document.getElementById('dimensionsList'),
+        measuresList: document.getElementById('measuresList'),
+        dimensionCountBadge: document.getElementById('dimensionCountBadge'),
+        measureCountBadge: document.getElementById('measureCountBadge'),
+        inspectFieldType: document.getElementById('inspectFieldType'),
+        fieldInspectorContent: document.getElementById('fieldInspectorContent'),
+        kpiTotalRows: document.getElementById('kpiTotalRows'),
+        kpiTotalCols: document.getElementById('kpiTotalCols'),
+        kpiDimCount: document.getElementById('kpiDimCount'),
+        kpiMeasCount: document.getElementById('kpiMeasCount'),
+        kpiMissingRatio: document.getElementById('kpiMissingRatio'),
+        kpiMissingCells: document.getElementById('kpiMissingCells'),
+        kpiAggSum: document.getElementById('kpiAggSum'),
+        kpiAggAvg: document.getElementById('kpiAggAvg'),
+        shelfXAxis: document.getElementById('shelfXAxis'),
+        shelfYAxis: document.getElementById('shelfYAxis'),
+        shelfAgg: document.getElementById('shelfAgg'),
+        shelfChartType: document.getElementById('shelfChartType'),
+        shelfSort: document.getElementById('shelfSort'),
+        shelfTopN: document.getElementById('shelfTopN'),
+        checkTension: document.getElementById('checkTension'),
+        shelfQueryMetrics: document.getElementById('shelfQueryMetrics'),
+        btnResetShelf: document.getElementById('btnResetShelf'),
+        tabVisualBtn: document.getElementById('tabVisualBtn'),
+        tabDataBtn: document.getElementById('tabDataBtn'),
+        tabVisualContent: document.getElementById('tabVisualContent'),
+        tabDataContent: document.getElementById('tabDataContent'),
+        canvasSummaryBadge: document.getElementById('canvasSummaryBadge'),
+        analyticsCanvas: document.getElementById('analyticsCanvas'),
+        btnExpandVisual: document.getElementById('btnExpandVisual'),
+        fullscreenVisualModal: document.getElementById('fullscreenVisualModal'),
+        fullscreenCanvas: document.getElementById('fullscreenCanvas'),
+        btnCloseFSModal: document.getElementById('btnCloseFSModal'),
+        btnExportFSChart: document.getElementById('btnExportFSChart'),
+        fsModalTitle: document.getElementById('fsModalTitle'),
+        statPeakVal: document.getElementById('statPeakVal'),
+        statFloorVal: document.getElementById('statFloorVal'),
+        statMeanVal: document.getElementById('statMeanVal'),
+        statSegmentCount: document.getElementById('statSegmentCount'),
+        gridSearchInput: document.getElementById('gridSearchInput'),
+        btnSearchGrid: document.getElementById('btnSearchGrid'),
+        btnExportCSV: document.getElementById('btnExportCSV'),
+        gridTotalInfo: document.getElementById('gridTotalInfo'),
+        gridPageSize: document.getElementById('gridPageSize'),
+        tableHeaderRow: document.getElementById('tableHeaderRow'),
+        tableBody: document.getElementById('tableBody'),
+        paginationLabel: document.getElementById('paginationLabel'),
+        btnPrevPage: document.getElementById('btnPrevPage'),
+        btnNextPage: document.getElementById('btnNextPage')
+      };
+
+      // Number Formatter
+      function formatNumber(num) {
+        if (num === null || num === undefined || isNaN(num)) return '-';
+        if (Math.abs(num) >= 1_000_000_000) {
+          return (num / 1_000_000_000).toFixed(2) + 'B';
+        }
+        if (Math.abs(num) >= 1_000_000) {
+          return (num / 1_000_000).toFixed(2) + 'M';
+        }
+        if (Math.abs(num) >= 1_000) {
+          return (num / 1_000).toFixed(1) + 'k';
+        }
+        return Number(num).toLocaleString(undefined, { maximumFractionDigits: 2 });
+      }
+
+      // ==============================================================
+      // INITIALIZATION & CATALOG LOADING
+      // ==============================================================
+      async function init() {
+        setupEventListeners();
+        await loadDatasetsCatalog();
+      }
+
+      async function loadDatasetsCatalog() {
+        try {
+          const res = await fetch('/api/datasets');
+          if (!res.ok) throw new Error('Failed to retrieve catalog');
+          const datasets = await res.json();
+          state.datasetCatalog = datasets;
+
+          els.datasetSelect.innerHTML = '';
+          if (datasets.length === 0) {
+            const opt = document.createElement('option');
+            opt.textContent = 'No datasets found';
+            els.datasetSelect.appendChild(opt);
+            return;
+          }
+
+          datasets.forEach(ds => {
+            const opt = document.createElement('option');
+            opt.value = ds.id;
+            opt.textContent = `${ds.filename} (${ds.row_count} rows)`;
+            els.datasetSelect.appendChild(opt);
+          });
+
+          const targetId = state.currentDatasetId || datasets[0].id;
+          els.datasetSelect.value = targetId;
+          await selectDataset(targetId);
+
+        } catch (err) {
+          console.error('Catalog load error:', err);
+        }
+      }
+
+      async function selectDataset(datasetId) {
+        state.currentDatasetId = datasetId;
+        try {
+          els.shelfQueryMetrics.textContent = 'Profiling...';
+          const res = await fetch(`/api/datasets/${datasetId}`);
+          if (!res.ok) throw new Error('Dataset profile fetch error');
+          const data = await res.json();
+          state.currentProfile = data;
+          state.dimensions = data.dimensions || [];
+          state.measures = data.measures || [];
+
+          // Update Header & KPIs
+          els.dbStatusFilename.textContent = data.dataset.filename;
+          els.kpiTotalRows.textContent = Number(data.summary.total_rows).toLocaleString();
+          els.kpiTotalCols.textContent = data.summary.total_columns;
+          els.kpiDimCount.textContent = data.summary.dimension_count;
+          els.kpiMeasCount.textContent = data.summary.measure_count;
+          els.kpiMissingRatio.textContent = data.summary.missing_ratio_pct + '%';
+          els.kpiMissingCells.textContent = data.summary.total_missing_cells;
+
+          // Hydrate Left Sidebar Fields
+          hydrateFieldsShelf();
+
+          // Populate Shelf Dropdowns
+          populateShelfDropdowns();
+
+          // Load Visual Aggregation
+          await executeAggregation();
+
+          // Load Raw Data Grid
+          state.grid.page = 1;
+          await loadGridData();
+
+          els.shelfQueryMetrics.textContent = 'Synced';
+
+        } catch (err) {
+          console.error('Error selecting dataset:', err);
+          els.shelfQueryMetrics.textContent = 'Error loading dataset';
+        }
+      }
+
+      // ==============================================================
+      // FIELDS SHELF HYDRATION
+      // ==============================================================
+      function hydrateFieldsShelf() {
+        const query = (els.fieldSearchInput.value || '').toLowerCase().trim();
+
+        // 1. Dimensions
+        els.dimensionsList.innerHTML = '';
+        const filteredDims = state.dimensions.filter(d => d.column_name.toLowerCase().includes(query));
+        els.dimensionCountBadge.textContent = filteredDims.length;
+
+        if (filteredDims.length === 0) {
+          els.dimensionsList.innerHTML = '<div class="text-[11px] text-slate-400 italic py-1 px-1">No matching dimensions</div>';
+        } else {
+          filteredDims.forEach(dim => {
+            const item = document.createElement('div');
+            item.className = 'field-item flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs bg-slate-50 hover:bg-sky-50 border border-slate-200/80 cursor-pointer group transition-all';
+            item.innerHTML = `
+              <div class="flex items-center gap-1.5 truncate">
+                <span class="w-3.5 h-3.5 rounded bg-sky-100 text-[#0284C7] text-[9px] font-bold flex items-center justify-center font-mono flex-shrink-0">Abc</span>
+                <span class="text-slate-800 font-medium truncate">${escapeHtml(dim.column_name)}</span>
+              </div>
+              <span class="opacity-0 group-hover:opacity-100 text-[10px] text-[#0284C7] font-semibold px-1 rounded bg-white shadow-2xs">
+                Set X
+              </span>
+            `;
+            item.addEventListener('click', () => {
+              els.shelfXAxis.value = dim.column_name;
+              inspectField(dim);
+              executeAggregation();
+            });
+            item.addEventListener('mouseenter', () => inspectField(dim));
+            els.dimensionsList.appendChild(item);
+          });
+        }
+
+        // 2. Measures
+        els.measuresList.innerHTML = '';
+        const filteredMeas = state.measures.filter(m => m.column_name.toLowerCase().includes(query));
+        els.measureCountBadge.textContent = filteredMeas.length;
+
+        if (filteredMeas.length === 0) {
+          els.measuresList.innerHTML = '<div class="text-[11px] text-slate-400 italic py-1 px-1">No matching measures</div>';
+        } else {
+          filteredMeas.forEach(meas => {
+            const item = document.createElement('div');
+            item.className = 'field-item flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs bg-slate-50 hover:bg-emerald-50 border border-slate-200/80 cursor-pointer group transition-all';
+            item.innerHTML = `
+              <div class="flex items-center gap-1.5 truncate">
+                <span class="w-3.5 h-3.5 rounded bg-emerald-100 text-emerald-700 text-[9px] font-bold flex items-center justify-center font-mono flex-shrink-0">#</span>
+                <span class="text-slate-800 font-medium truncate">${escapeHtml(meas.column_name)}</span>
+              </div>
+              <span class="opacity-0 group-hover:opacity-100 text-[10px] text-emerald-700 font-semibold px-1 rounded bg-white shadow-2xs">
+                Set Y
+              </span>
+            `;
+            item.addEventListener('click', () => {
+              els.shelfYAxis.value = meas.column_name;
+              inspectField(meas);
+              executeAggregation();
+            });
+            item.addEventListener('mouseenter', () => inspectField(meas));
+            els.measuresList.appendChild(item);
+          });
+        }
+      }
+
+      function inspectField(field) {
+        els.inspectFieldType.textContent = field.data_type.toUpperCase();
+        if (field.data_type === 'Measure') {
+          els.fieldInspectorContent.innerHTML = `
+            <div class="space-y-0.5 font-mono text-[11px]">
+              <div class="text-slate-900 font-bold mb-1">${escapeHtml(field.column_name)}</div>
+              <div class="flex justify-between text-slate-600"><span>Mean:</span> <strong>${formatNumber(field.mean)}</strong></div>
+              <div class="flex justify-between text-slate-600"><span>Median:</span> <strong>${formatNumber(field.median)}</strong></div>
+              <div class="flex justify-between text-slate-600"><span>Min:</span> <strong>${formatNumber(field.min_val)}</strong></div>
+              <div class="flex justify-between text-slate-600"><span>Max:</span> <strong>${formatNumber(field.max_val)}</strong></div>
+              <div class="flex justify-between text-slate-500 pt-0.5 border-t border-slate-200"><span>Missing:</span> <span>${field.missing_values}</span></div>
+            </div>
+          `;
+        } else {
+          els.fieldInspectorContent.innerHTML = `
+            <div class="space-y-0.5 font-mono text-[11px]">
+              <div class="text-slate-900 font-bold mb-1">${escapeHtml(field.column_name)}</div>
+              <div class="flex justify-between text-slate-600"><span>Unique Values:</span> <strong>${field.unique_count || '-'}</strong></div>
+              <div class="flex justify-between text-slate-500 pt-0.5 border-t border-slate-200"><span>Missing:</span> <span>${field.missing_values}</span></div>
+            </div>
+          `;
+        }
+      }
+
+      // ==============================================================
+      // SHELVES & AXIS DROPDOWNS POPULATION
+      // ==============================================================
+      function populateShelfDropdowns() {
+        const curX = els.shelfXAxis.value;
+        const curY = els.shelfYAxis.value;
+
+        // X-Axis: All dimensions, plus measures
+        els.shelfXAxis.innerHTML = '';
+        state.dimensions.forEach(d => {
+          const opt = document.createElement('option');
+          opt.value = d.column_name;
+          opt.textContent = `[Abc] ${d.column_name}`;
+          els.shelfXAxis.appendChild(opt);
+        });
+
+        if (state.measures.length > 0) {
+          const optGroup = document.createElement('optgroup');
+          optGroup.label = 'Numeric Measures';
+          state.measures.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.column_name;
+            opt.textContent = `[#] ${m.column_name}`;
+            optGroup.appendChild(opt);
+          });
+          els.shelfXAxis.appendChild(optGroup);
+        }
+
+        // Y-Axis: Measures primary
+        els.shelfYAxis.innerHTML = '';
+        state.measures.forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m.column_name;
+          opt.textContent = `[#] ${m.column_name}`;
+          els.shelfYAxis.appendChild(opt);
+        });
+
+        if (state.measures.length === 0) {
+          state.dimensions.forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d.column_name;
+            opt.textContent = `[Abc] ${d.column_name}`;
+            els.shelfYAxis.appendChild(opt);
+          });
+        }
+
+        if (curX && [...els.shelfXAxis.options].some(o => o.value === curX)) {
+          els.shelfXAxis.value = curX;
+        } else if (state.dimensions.length > 0) {
+          els.shelfXAxis.value = state.dimensions[0].column_name;
+        }
+
+        if (curY && [...els.shelfYAxis.options].some(o => o.value === curY)) {
+          els.shelfYAxis.value = curY;
+        } else if (state.measures.length > 0) {
+          els.shelfYAxis.value = state.measures[0].column_name;
+        }
+      }
+
+      // ==============================================================
+      // VISUAL AGGREGATION & CHART.JS LAYOUT ENGINE
+      // ==============================================================
+      async function executeAggregation() {
+        if (!state.currentDatasetId) return;
+
+        const xAxis = els.shelfXAxis.value;
+        const yAxis = els.shelfYAxis.value;
+        const agg = els.shelfAgg.value;
+        const chartType = els.shelfChartType.value;
+        const sortOrder = els.shelfSort.value;
+        const topN = els.shelfTopN.value ? parseInt(els.shelfTopN.value) : null;
+        const tension = els.checkTension.checked ? 0.3 : 0.0;
+
+        if (!xAxis || !yAxis) {
+          els.shelfQueryMetrics.textContent = 'Select X and Y';
+          return;
+        }
+
+        try {
+          els.shelfQueryMetrics.textContent = 'Computing...';
+
+          const res = await fetch(`/api/datasets/${state.currentDatasetId}/aggregate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              x_axis: xAxis,
+              y_axis: yAxis,
+              agg: agg,
+              sort: sortOrder,
+              top_n: topN
+            })
+          });
+
+          if (!res.ok) {
+            const errJson = await res.json();
+            throw new Error(errJson.error || 'Aggregation error');
+          }
+
+          const aggData = await res.json();
+          state.currentAggData = aggData;
+
+          // Update KPI & Benchmark Bars
+          els.kpiAggSum.textContent = formatNumber(aggData.summary.total);
+          els.kpiAggAvg.textContent = formatNumber(aggData.summary.average);
+          els.statPeakVal.textContent = formatNumber(aggData.summary.max);
+          els.statFloorVal.textContent = formatNumber(aggData.summary.min);
+          els.statMeanVal.textContent = formatNumber(aggData.summary.average);
+          els.statSegmentCount.textContent = aggData.count;
+          els.canvasSummaryBadge.textContent = `${aggData.count} points (${agg} of ${yAxis})`;
+
+          // Render Chart.js
+          renderChart(els.analyticsCanvas, aggData, chartType, tension);
+
+          els.shelfQueryMetrics.textContent = `${aggData.count} categories rendered`;
+
+        } catch (err) {
+          console.error('Aggregation error:', err);
+          els.shelfQueryMetrics.textContent = `Error: ${err.message}`;
+        }
+      }
+
+      function buildChartConfig(data, chartType, tension) {
+        const isHorizontal = (chartType === 'horizontalBar');
+        const effectiveType = isHorizontal ? 'bar' : (chartType === 'area' ? 'line' : chartType);
+        const isFill = (chartType === 'area');
+        const isCircular = (chartType === 'pie' || chartType === 'doughnut');
+
+        const bgColors = data.labels.map((_, i) => corporatePalette[i % corporatePalette.length]);
+        const primaryColor = '#0284C7';
+        const primaryFill = isFill ? 'rgba(2, 132, 199, 0.15)' : (effectiveType === 'bar' ? '#0284C7' : primaryColor);
+
+        return {
+          type: effectiveType,
+          data: {
+            labels: data.labels,
+            datasets: [{
+              label: `${data.aggregation} of ${data.y_axis}`,
+              data: data.values,
+              backgroundColor: isCircular ? bgColors : primaryFill,
+              borderColor: isCircular ? '#FFFFFF' : '#0284C7',
+              borderWidth: isCircular ? 2 : (effectiveType === 'bar' ? 0 : 2),
+              tension: tension,
+              fill: isFill,
+              pointBackgroundColor: '#FFFFFF',
+              pointBorderColor: '#0284C7',
+              pointBorderWidth: 2,
+              pointRadius: 4,
+              pointHoverRadius: 6,
+              borderRadius: effectiveType === 'bar' ? 4 : 0
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: isHorizontal ? 'y' : 'x',
+            animation: { duration: 300 },
+            plugins: {
+              legend: {
+                display: isCircular,
+                position: 'right',
+                labels: {
+                  boxWidth: 12,
+                  font: { family: 'Inter, sans-serif', size: 11 },
+                  color: '#475569'
+                }
+              },
+              tooltip: {
+                backgroundColor: '#0F172A',
+                titleColor: '#F8FAFC',
+                bodyColor: '#F8FAFC',
+                borderColor: '#334155',
+                borderWidth: 1,
+                padding: 10,
+                cornerRadius: 6,
+                callbacks: {
+                  label: function (ctx) {
+                    return ` ${data.aggregation} (${data.y_axis}): ${Number(ctx.raw).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+                  }
+                }
+              }
+            },
+            scales: isCircular ? {} : {
+              x: {
+                grid: { color: '#E2E8F0', drawTicks: false },
+                ticks: {
+                  color: '#475569',
+                  font: { family: 'Inter, sans-serif', size: 11 },
+                  maxRotation: 45,
+                  minRotation: 0
+                },
+                title: {
+                  display: true,
+                  text: isHorizontal ? `${data.aggregation} of ${data.y_axis}` : data.x_axis,
+                  color: '#0F172A',
+                  font: { size: 11, weight: '600' }
+                }
+              },
+              y: {
+                grid: { color: '#E2E8F0', drawTicks: false },
+                ticks: {
+                  color: '#475569',
+                  font: { family: 'JetBrains Mono, monospace', size: 10 },
+                  callback: function (val) { return formatNumber(val); }
+                },
+                title: {
+                  display: true,
+                  text: isHorizontal ? data.x_axis : `${data.aggregation} of ${data.y_axis}`,
+                  color: '#0F172A',
+                  font: { size: 11, weight: '600' }
+                }
+              }
+            }
+          }
+        };
+      }
+
+      function renderChart(canvasEl, data, chartType, tension) {
+        if (state.chartInstance) {
+          state.chartInstance.destroy();
+          state.chartInstance = null;
+        }
+
+        const ctx = canvasEl.getContext('2d');
+        const config = buildChartConfig(data, chartType, tension);
+        state.chartInstance = new Chart(ctx, config);
+      }
+
+      // ==============================================================
+      // FULLSCREEN VISUAL MODAL ENGINE
+      // ==============================================================
+      function openFullscreenVisual() {
+        if (!state.currentAggData) return;
+
+        els.fullscreenVisualModal.classList.remove('hidden');
+        els.fsModalTitle.textContent = `${state.currentAggData.aggregation} of ${state.currentAggData.y_axis} by ${state.currentAggData.x_axis}`;
+
+        if (state.fsChartInstance) {
+          state.fsChartInstance.destroy();
+          state.fsChartInstance = null;
+        }
+
+        const ctx = els.fullscreenCanvas.getContext('2d');
+        const chartType = els.shelfChartType.value;
+        const tension = els.checkTension.checked ? 0.3 : 0.0;
+        const config = buildChartConfig(state.currentAggData, chartType, tension);
+        state.fsChartInstance = new Chart(ctx, config);
+      }
+
+      function closeFullscreenVisual() {
+        els.fullscreenVisualModal.classList.add('hidden');
+        if (state.fsChartInstance) {
+          state.fsChartInstance.destroy();
+          state.fsChartInstance = null;
+        }
+        if (state.chartInstance) {
+          state.chartInstance.resize();
+        }
+      }
+
+      // ==============================================================
+      // PAGINATED RAW DATA GRID
+      // ==============================================================
+      async function loadGridData() {
+        if (!state.currentDatasetId) return;
+
+        try {
+          const params = new URLSearchParams({
+            page: state.grid.page,
+            page_size: state.grid.pageSize,
+            search: state.grid.search,
+            sort_col: state.grid.sortCol,
+            sort_dir: state.grid.sortDir
+          });
+
+          const res = await fetch(`/api/datasets/${state.currentDatasetId}/data?${params.toString()}`);
+          if (!res.ok) throw new Error('Data grid fetch error');
+
+          const data = await res.json();
+          state.grid.totalRecords = data.total_records;
+          state.grid.totalPages = data.total_pages;
+
+          renderGridHeaders();
+          renderGridRows(data.data);
+
+          const startIdx = (state.grid.page - 1) * state.grid.pageSize + 1;
+          const endIdx = Math.min(startIdx + data.data.length - 1, data.total_records);
+          els.gridTotalInfo.textContent = data.total_records > 0 ? `Showing ${startIdx}-${endIdx} of ${data.total_records}` : '0 records found';
+          els.paginationLabel.textContent = `Page ${state.grid.page} of ${state.grid.totalPages}`;
+          els.btnPrevPage.disabled = (state.grid.page <= 1);
+          els.btnNextPage.disabled = (state.grid.page >= state.grid.totalPages);
+
+        } catch (err) {
+          console.error('Grid load error:', err);
+        }
+      }
+
+      function renderGridHeaders() {
+        els.tableHeaderRow.innerHTML = '';
+
+        const indexTh = document.createElement('th');
+        indexTh.className = 'py-2 px-3 text-[10px] uppercase font-mono text-slate-400 bg-slate-50 border-r border-slate-200 w-12 text-center';
+        indexTh.textContent = '#';
+        els.tableHeaderRow.appendChild(indexTh);
+
+        if (!state.currentProfile || !state.currentProfile.columns) return;
+
+        state.currentProfile.columns.forEach(col => {
+          const th = document.createElement('th');
+          const isSorted = (state.grid.sortCol === col.column_name);
+          const isMeasure = (col.data_type === 'Measure');
+
+          th.className = 'py-2.5 px-3 text-xs font-semibold text-slate-700 bg-slate-50 border-r border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors whitespace-nowrap select-none';
+          th.innerHTML = `
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-1.5">
+                <span class="w-3.5 h-3.5 rounded ${isMeasure ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-[#0284C7]'} text-[9px] font-bold flex items-center justify-center font-mono">${isMeasure ? '#' : 'Abc'}</span>
+                <span>${escapeHtml(col.column_name)}</span>
+              </div>
+              <span class="text-[10px] text-slate-400 font-mono">${isSorted ? (state.grid.sortDir === 'asc' ? '▲' : '▼') : ''}</span>
+            </div>
+          `;
+
+          th.addEventListener('click', () => {
+            if (state.grid.sortCol === col.column_name) {
+              state.grid.sortDir = (state.grid.sortDir === 'asc' ? 'desc' : 'asc');
+            } else {
+              state.grid.sortCol = col.column_name;
+              state.grid.sortDir = 'asc';
+            }
+            state.grid.page = 1;
+            loadGridData();
+          });
+
+          els.tableHeaderRow.appendChild(th);
+        });
+      }
+
+      function renderGridRows(records) {
+        els.tableBody.innerHTML = '';
+
+        if (!records || records.length === 0) {
+          const tr = document.createElement('tr');
+          const td = document.createElement('td');
+          td.colSpan = (state.currentProfile?.columns?.length || 0) + 1;
+          td.className = 'py-8 text-center text-slate-400 italic font-sans text-xs';
+          td.textContent = 'No matching records in this dataset';
+          tr.appendChild(td);
+          els.tableBody.appendChild(tr);
+          return;
+        }
+
+        const cols = state.currentProfile?.columns || [];
+        const startIdx = (state.grid.page - 1) * state.grid.pageSize;
+
+        records.forEach((row, rIdx) => {
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-sky-50/40 transition-colors border-b border-slate-100';
+
+          const idxTd = document.createElement('td');
+          idxTd.className = 'py-2 px-3 text-[10px] text-slate-400 text-center font-mono border-r border-slate-200 bg-slate-50/50';
+          idxTd.textContent = startIdx + rIdx + 1;
+          tr.appendChild(idxTd);
+
+          cols.forEach(col => {
+            const td = document.createElement('td');
+            const val = row[col.column_name];
+            const isNull = (val === null || val === undefined);
+            const isMeasure = (col.data_type === 'Measure');
+
+            td.className = `py-2 px-3 border-r border-slate-200 truncate max-w-[200px] ${isMeasure ? 'text-right font-mono' : 'text-left'}`;
+            if (isNull) {
+              td.innerHTML = '<span class="text-slate-300 italic">null</span>';
+            } else if (isMeasure) {
+              td.textContent = typeof val === 'number' ? Number(val).toLocaleString(undefined, { maximumFractionDigits: 3 }) : val;
+            } else {
+              td.textContent = val;
+            }
+            tr.appendChild(td);
+          });
+
+          els.tableBody.appendChild(tr);
+        });
+      }
+
+      // ==============================================================
+      // EXPORT FILTERED DATA TO CSV
+      // ==============================================================
+      function exportDataToCSV() {
+        if (!state.currentDatasetId) return;
+
+        const params = new URLSearchParams({
+          search: state.grid.search,
+          sort_col: state.grid.sortCol,
+          sort_dir: state.grid.sortDir
+        });
+
+        // Trigger file download directly from server export endpoint
+        const downloadUrl = `/api/datasets/${state.currentDatasetId}/export-csv?${params.toString()}`;
+        
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.setAttribute('download', '');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Flash temporary feedback on button
+        const origText = els.btnExportCSV.innerHTML;
+        els.btnExportCSV.innerHTML = `
+          <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <span>Downloaded!</span>
+        `;
+        setTimeout(() => {
+          els.btnExportCSV.innerHTML = origText;
+        }, 2200);
+      }
+
+      // ==============================================================
+      // FILE UPLOAD HANDLER
+      // ==============================================================
+      function handleFileUpload(file) {
+        if (!file) return;
+
+        if (!file.name.toLowerCase().endsWith('.csv') && !file.name.toLowerCase().endsWith('.txt')) {
+          showUploadFeedback('Please provide a valid .csv file', false);
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        showUploadFeedback(`Uploading ${file.name}...`, true);
+
+        fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        })
+          .then(res => {
+            if (!res.ok) return res.json().then(j => { throw new Error(j.error || 'Upload error'); });
+            return res.json();
+          })
+          .then(async result => {
+            showUploadFeedback(`✓ ${file.name} loaded successfully!`, true);
+            await loadDatasetsCatalog();
+            await selectDataset(result.dataset_id);
+          })
+          .catch(err => {
+            console.error('File upload failure:', err);
+            showUploadFeedback(`Upload failed: ${err.message}`, false);
+          });
+      }
+
+      function showUploadFeedback(msg, isSuccess) {
+        els.uploadFeedback.textContent = msg;
+        els.uploadFeedback.className = `text-[11px] mt-1.5 font-medium flex items-center gap-1 ${isSuccess ? 'text-emerald-700' : 'text-rose-600'}`;
+        els.uploadFeedback.classList.remove('hidden');
+        setTimeout(() => {
+          els.uploadFeedback.classList.add('hidden');
+        }, 5000);
+      }
+
+      // ==============================================================
+      // EVENT LISTENERS BINDING
+      // ==============================================================
+      function setupEventListeners() {
+        // Dataset Switcher
+        els.datasetSelect.addEventListener('change', (e) => {
+          selectDataset(parseInt(e.target.value));
+        });
+
+        // Reset to sample dataset
+        els.btnReloadSample.addEventListener('click', async () => {
+          try {
+            els.btnReloadSample.disabled = true;
+            els.shelfQueryMetrics.textContent = 'Generating sample model...';
+            const res = await fetch('/api/sample-dataset', { method: 'POST' });
+            const data = await res.json();
+            await loadDatasetsCatalog();
+            if (data.dataset_id) {
+              await selectDataset(data.dataset_id);
+            }
+          } catch (err) {
+            console.error('Sample generation failed:', err);
+          } finally {
+            els.btnReloadSample.disabled = false;
+          }
+        });
+
+        // App Fullscreen Toggle
+        els.btnAppFullscreen.addEventListener('click', () => {
+          if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+              console.warn('Fullscreen error:', err);
+            });
+            els.fullscreenBtnText.textContent = 'Exit Screen';
+          } else {
+            if (document.exitFullscreen) {
+              document.exitFullscreen();
+            }
+            els.fullscreenBtnText.textContent = 'Fullscreen';
+          }
+        });
+
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement) {
+            els.fullscreenBtnText.textContent = 'Fullscreen';
+          } else {
+            els.fullscreenBtnText.textContent = 'Exit Screen';
+          }
+        });
+
+        // Fullscreen Visual Canvas Trigger
+        els.btnExpandVisual.addEventListener('click', openFullscreenVisual);
+        els.btnCloseFSModal.addEventListener('click', closeFullscreenVisual);
+
+        // Escape key exits visual modal
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape' && !els.fullscreenVisualModal.classList.contains('hidden')) {
+            closeFullscreenVisual();
+          }
+        });
+
+        // Drag and Drop Zone
+        ['dragenter', 'dragover'].forEach(eventName => {
+          els.dropZone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            els.dropZone.classList.add('drag-active');
+          });
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+          els.dropZone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            els.dropZone.classList.remove('drag-active');
+          });
+        });
+
+        els.dropZone.addEventListener('drop', (e) => {
+          const files = e.dataTransfer.files;
+          if (files.length > 0) handleFileUpload(files[0]);
+        });
+
+        els.dropZone.addEventListener('click', () => {
+          els.csvFileInput.click();
+        });
+
+        els.csvFileInput.addEventListener('change', (e) => {
+          if (e.target.files.length > 0) {
+            handleFileUpload(e.target.files[0]);
+          }
+        });
+
+        // Search Fields
+        els.fieldSearchInput.addEventListener('input', () => {
+          hydrateFieldsShelf();
+        });
+
+        // Shelves mapping change triggers
+        [els.shelfXAxis, els.shelfYAxis, els.shelfAgg, els.shelfChartType, els.shelfSort, els.shelfTopN, els.checkTension].forEach(ctrl => {
+          ctrl.addEventListener('change', () => {
+            executeAggregation();
+          });
+        });
+
+        // Reset Shelves
+        els.btnResetShelf.addEventListener('click', () => {
+          if (state.dimensions.length > 0) els.shelfXAxis.value = state.dimensions[0].column_name;
+          if (state.measures.length > 0) els.shelfYAxis.value = state.measures[0].column_name;
+          els.shelfAgg.value = 'SUM';
+          els.shelfChartType.value = 'bar';
+          els.shelfSort.value = 'desc';
+          els.shelfTopN.value = '25';
+          els.checkTension.checked = true;
+          executeAggregation();
+        });
+
+        // Tab Switching
+        els.tabVisualBtn.addEventListener('click', () => {
+          els.tabVisualBtn.className = 'px-3.5 py-2.5 text-xs font-bold border-b-2 border-[#0284C7] text-[#0284C7] flex items-center gap-2 transition-colors';
+          els.tabDataBtn.className = 'px-3.5 py-2.5 text-xs font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center gap-2 transition-colors';
+          els.tabVisualContent.classList.remove('hidden');
+          els.tabDataContent.classList.add('hidden');
+          if (state.chartInstance) state.chartInstance.resize();
+        });
+
+        els.tabDataBtn.addEventListener('click', () => {
+          els.tabDataBtn.className = 'px-3.5 py-2.5 text-xs font-bold border-b-2 border-[#0284C7] text-[#0284C7] flex items-center gap-2 transition-colors';
+          els.tabVisualBtn.className = 'px-3.5 py-2.5 text-xs font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center gap-2 transition-colors';
+          els.tabDataContent.classList.remove('hidden');
+          els.tabVisualContent.classList.add('hidden');
+        });
+
+        // Data Grid Search & Pagination
+        els.btnSearchGrid.addEventListener('click', () => {
+          state.grid.search = els.gridSearchInput.value.trim();
+          state.grid.page = 1;
+          loadGridData();
+        });
+
+        els.gridSearchInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            state.grid.search = els.gridSearchInput.value.trim();
+            state.grid.page = 1;
+            loadGridData();
+          }
+        });
+
+        els.gridPageSize.addEventListener('change', (e) => {
+          state.grid.pageSize = parseInt(e.target.value);
+          state.grid.page = 1;
+          loadGridData();
+        });
+
+        els.btnPrevPage.addEventListener('click', () => {
+          if (state.grid.page > 1) {
+            state.grid.page--;
+            loadGridData();
+          }
+        });
+
+        els.btnNextPage.addEventListener('click', () => {
+          if (state.grid.page < state.grid.totalPages) {
+            state.grid.page++;
+            loadGridData();
+          }
+        });
+
+        // EXPORT DATA TO CSV BUTTON
+        els.btnExportCSV.addEventListener('click', exportDataToCSV);
+
+        // Export Visual Canvas as PNG
+        els.btnExportChart.addEventListener('click', () => {
+          if (!state.chartInstance) return;
+          const imgUrl = state.chartInstance.toBase64Image('image/png', 1.0);
+          const link = document.createElement('a');
+          const safeName = (state.currentProfile?.dataset?.filename || 'omnisight_analysis').replace(/\.[^/.]+$/, '');
+          link.download = `${safeName}_${els.shelfXAxis.value}_${els.shelfYAxis.value}.png`;
+          link.href = imgUrl;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        });
+
+        // Export Fullscreen Chart
+        els.btnExportFSChart.addEventListener('click', () => {
+          if (!state.fsChartInstance) return;
+          const imgUrl = state.fsChartInstance.toBase64Image('image/png', 1.0);
+          const link = document.createElement('a');
+          const safeName = (state.currentProfile?.dataset?.filename || 'omnisight_analysis').replace(/\.[^/.]+$/, '');
+          link.download = `${safeName}_fullscreen.png`;
+          link.href = imgUrl;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        });
+
+        // Window resize
+        window.addEventListener('resize', () => {
+          if (state.chartInstance) state.chartInstance.resize();
+          if (state.fsChartInstance) state.fsChartInstance.resize();
+        });
+      }
+
+      function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+
+      // Bootstrap on DOM ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+
+    })();
+  </script>
+</body>
+</html>
